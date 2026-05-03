@@ -238,9 +238,11 @@ input:focus,select:focus{outline:none;border-color:#1a1a1a}
       <!-- Toolbar -->
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px;flex-wrap:wrap;gap:10px">
         <div style="display:flex;gap:6px">
-          <button onclick="filterOrders('pending')" id="filter-pending" style="padding:7px 14px;background:#1a1a1a;color:#fff;border:none;border-radius:20px;font-size:12px;cursor:pointer;font-weight:600">⏳ Pendientes</button>
-          <button onclick="filterOrders('completed')" id="filter-completed" style="padding:7px 14px;background:#f3f4f6;color:#555;border:1px solid #ddd;border-radius:20px;font-size:12px;cursor:pointer;font-weight:600">✅ Entregados</button>
-          <button onclick="filterOrders('all')" id="filter-all" style="padding:7px 14px;background:#f3f4f6;color:#555;border:1px solid #ddd;border-radius:20px;font-size:12px;cursor:pointer;font-weight:600">Todos</button>
+          <button onclick="filterOrders('pending')" id="filter-pending" style="padding:7px 12px;background:#1a1a1a;color:#fff;border:none;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600">⏳ Pendientes</button>
+          <button onclick="filterOrders('process')" id="filter-process" style="padding:7px 12px;background:#f3f4f6;color:#555;border:1px solid #ddd;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600">🔧 En Proceso</button>
+          <button onclick="filterOrders('ready')" id="filter-ready" style="padding:7px 12px;background:#f3f4f6;color:#555;border:1px solid #ddd;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600">✓ Listos</button>
+          <button onclick="filterOrders('completed')" id="filter-completed" style="padding:7px 12px;background:#f3f4f6;color:#555;border:1px solid #ddd;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600">✅ Entregados</button>
+          <button onclick="filterOrders('all')" id="filter-all" style="padding:7px 12px;background:#f3f4f6;color:#555;border:1px solid #ddd;border-radius:20px;font-size:11px;cursor:pointer;font-weight:600">Todos</button>
         </div>
         <div style="display:flex;gap:8px">
           <button onclick="openQuickSaleModal()" style="padding:8px 14px;background:#16a34a;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:13px">💵 Venta Rápida</button>
@@ -376,10 +378,11 @@ input:focus,select:focus{outline:none;border-color:#1a1a1a}
           </div>
         </div>
         <!-- KPIs -->
-        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:10px;margin-bottom:16px">
-          <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#16a34a;font-weight:600">PEDIDOS</div><div style="font-size:20px;font-weight:700;color:#16a34a" id="ven-count">0</div></div>
-          <div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#1d4ed8;font-weight:600">EN PROCESO</div><div style="font-size:20px;font-weight:700;color:#1d4ed8" id="ven-process">0</div></div>
-          <div style="background:#fefce8;border:1px solid #fde68a;border-radius:8px;padding:10px;text-align:center"><div style="font-size:10px;color:#a16207;font-weight:600">ENTREGADOS</div><div style="font-size:20px;font-weight:700;color:#a16207" id="ven-delivered">0</div></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+          <div onclick="filterSellerOrders('all')" id="ven-kpi-all" style="background:#f0fdf4;border:2px solid #16a34a;border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all .15s"><div style="font-size:10px;color:#16a34a;font-weight:600">TODOS</div><div style="font-size:20px;font-weight:700;color:#16a34a" id="ven-count">0</div></div>
+          <div onclick="filterSellerOrders('process')" id="ven-kpi-process" style="background:#eff6ff;border:2px solid transparent;border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all .15s"><div style="font-size:10px;color:#1d4ed8;font-weight:600">EN PROCESO</div><div style="font-size:20px;font-weight:700;color:#1d4ed8" id="ven-process">0</div></div>
+          <div onclick="filterSellerOrders('ready')" id="ven-kpi-ready" style="background:#ede9fe;border:2px solid transparent;border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all .15s"><div style="font-size:10px;color:#7c3aed;font-weight:600">LISTOS</div><div style="font-size:20px;font-weight:700;color:#7c3aed" id="ven-ready">0</div></div>
+          <div onclick="filterSellerOrders('delivered')" id="ven-kpi-delivered" style="background:#fefce8;border:2px solid transparent;border-radius:8px;padding:10px;text-align:center;cursor:pointer;transition:all .15s"><div style="font-size:10px;color:#a16207;font-weight:600">ENTREGADOS</div><div style="font-size:20px;font-weight:700;color:#a16207" id="ven-delivered">0</div></div>
         </div>
         <!-- Pedidos del vendedor -->
         <div style="font-size:9px;font-weight:700;color:#bbb;text-transform:uppercase;letter-spacing:.07em;margin-bottom:8px;padding-bottom:5px;border-bottom:1px solid #f0f0ec">Mis Pedidos y Ventas Este Mes</div>
@@ -3371,18 +3374,23 @@ window.renderDailyReport = function() {
   const selDate = new Date(input.value + 'T00:00:00');
   const dayStart = selDate.getTime();
   const dayEnd = dayStart + 24 * 60 * 60 * 1000;
+  const selectedDateStr = input.value; // "2026-04-28"
 
-  // Filtrar órdenes, ventas rápidas y compras del día
-  // Compras: extender rango para compensar bug de zona horaria en datos antiguos
-  const dayStartExp = dayStart - 5 * 60 * 60 * 1000; // -5h para cubrir UTC offset
+  // Helper: convierte timestamp a fecha local YYYY-MM-DD
+  // Suma 4h para compensar UTC offset de Venezuela en datos guardados antes del fix
+  const tsToDateStr = ts => {
+    const d = new Date(ts);
+    // Si el timestamp es exactamente medianoche UTC (dato viejo), ajustar con offset
+    const isUtcMidnight = d.getUTCHours() === 0 && d.getUTCMinutes() === 0;
+    const adjusted = isUtcMidnight ? new Date(ts + 4 * 60 * 60 * 1000) : d;
+    return adjusted.toISOString().split('T')[0];
+  };
+
   const dayOrders = orders.filter(o => o.createdAt >= dayStart && o.createdAt < dayEnd);
   const dayQS = quickSales.filter(q => q.date >= dayStart && q.date < dayEnd);
-  const dayExpenses = (typeof expenses !== 'undefined' ? expenses : []).filter(e => {
-    // Para datos nuevos (guardados con T12:00:00): rango normal
-    // Para datos viejos (guardados con UTC midnight): rango extendido
-    return e.date >= dayStart && e.date < dayEnd || 
-           (e.date >= dayStartExp && e.date < dayStart && new Date(e.date).toLocaleDateString() === selDate.toLocaleDateString());
-  });
+  const dayExpenses = (typeof expenses !== 'undefined' ? expenses : []).filter(e =>
+    tsToDateStr(e.date) === selectedDateStr
+  );
 
   const totalVentas = dayOrders.reduce((s, o) => s + o.amount, 0) + dayQS.reduce((s, q) => s + q.amount, 0);
   const totalCompras = dayExpenses.reduce((s, e) => s + e.amount, 0);
@@ -3862,6 +3870,7 @@ window.saveConfig=saveConfig;
 let orders = [];
 let quickSales = [];
 let ordersFilter = 'pending';
+let sellerOrdersFilter = 'all';
 
 let editingOrderId = null;
 
@@ -4168,7 +4177,7 @@ window.renderOrders = function() {
   setKpi('ord-kpi-overdue', overdue.length);
 
   // Actualizar botones de filtro
-  ['pending','completed','all'].forEach(f => {
+  ['pending','process','ready','completed','all'].forEach(f => {
     const btn = document.getElementById('filter-' + f);
     if (!btn) return;
     const isActive = ordersFilter === f;
@@ -4178,7 +4187,9 @@ window.renderOrders = function() {
   });
 
   let filtered = orders;
-  if (ordersFilter === 'pending') filtered = orders.filter(o => o.status !== 'entregado');
+  if (ordersFilter === 'pending') filtered = orders.filter(o => o.status !== 'entregado' && o.status !== 'listo');
+  else if (ordersFilter === 'process') filtered = orders.filter(o => ['en_produccion','en_diseño','aprobado','sin_empezar'].includes(o.status));
+  else if (ordersFilter === 'ready') filtered = orders.filter(o => o.status === 'listo');
   else if (ordersFilter === 'completed') filtered = orders.filter(o => o.status === 'entregado');
 
   // Filtrar por búsqueda
@@ -4883,21 +4894,42 @@ function showSellerView(seller) {
   document.getElementById('ven-meta-pct').textContent = pct + '%';
   document.getElementById('ven-meta-bar').style.width = pct + '%';
   document.getElementById('ven-meta-bar').style.background = barColor;
+  const inProcess = myOrders.filter(o => ['sin_empezar','en_diseño','aprobado','en_produccion'].includes(o.status));
+  const ready = myOrders.filter(o => o.status === 'listo');
+  const delivered = myOrders.filter(o => o.status === 'entregado');
+
   document.getElementById('ven-count').textContent = myOrders.length + myQS.length;
-  document.getElementById('ven-process').textContent = myOrders.filter(o => o.status !== 'entregado').length;
-  document.getElementById('ven-delivered').textContent = myOrders.filter(o => o.status === 'entregado').length;
+  document.getElementById('ven-process').textContent = inProcess.length;
+  document.getElementById('ven-ready').textContent = ready.length;
+  document.getElementById('ven-delivered').textContent = delivered.length;
+
+  // Highlight active KPI
+  ['all','process','ready','delivered'].forEach(f => {
+    const el = document.getElementById('ven-kpi-' + f);
+    if (!el) return;
+    const isActive = (sellerOrdersFilter || 'all') === f;
+    el.style.borderColor = isActive ? (f==='all'?'#16a34a':f==='process'?'#1d4ed8':f==='ready'?'#7c3aed':'#a16207') : 'transparent';
+    el.style.transform = isActive ? 'scale(1.03)' : 'scale(1)';
+  });
+
+  // Filtrar según KPI seleccionado
+  let displayOrders = myOrders;
+  const sf = sellerOrdersFilter || 'all';
+  if (sf === 'process') displayOrders = inProcess;
+  else if (sf === 'ready') displayOrders = ready;
+  else if (sf === 'delivered') displayOrders = delivered;
 
   // Lista de pedidos
-  let listHtml = myOrders.length === 0 && myQS.length === 0
-    ? '<div style="text-align:center;color:#888;padding:20px">Sin ventas este mes</div>'
-    : myOrders.map(o => {
+  let listHtml = displayOrders.length === 0 && (sf !== 'all' || myQS.length === 0)
+    ? '<div style="text-align:center;color:#888;padding:20px">' + (sf === 'all' ? 'Sin ventas este mes' : 'Sin pedidos con este status') + '</div>'
+    : displayOrders.map(o => {
       const del = new Date(o.deliveryAt).toLocaleDateString('es-VE');
       const sl = STATUS_LABELS[o.status] || o.status;
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0ec"><div><div style="font-weight:600;font-size:13px">' + (o.orderNumStr||'') + ' ' + o.clientName + '</div><div style="font-size:11px;color:#888">' + o.machine + ' · ' + del + '</div></div><div style="text-align:right"><div style="font-weight:700">$' + o.amount.toFixed(2) + '</div><div style="font-size:10px;color:#0284c7;font-weight:600">' + sl + '</div></div></div>';
     }).join('');
 
-  // Agregar ventas rápidas a la lista
-  if (myQS.length > 0) {
+  // Agregar ventas rápidas solo en vista "Todos"
+  if (myQS.length > 0 && sf === 'all') {
     listHtml += myQS.map(q => {
       const fecha = new Date(q.date).toLocaleDateString('es-VE');
       return '<div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0f0ec"><div><div style="font-weight:600;font-size:13px">💵 ' + q.description + '</div><div style="font-size:11px;color:#888">Venta rápida · ' + fecha + '</div></div><div style="text-align:right"><div style="font-weight:700;color:#16a34a">$' + q.amount.toFixed(2) + '</div><div style="font-size:10px;color:#16a34a;font-weight:600">Pagado ✓</div></div></div>';
@@ -4905,6 +4937,11 @@ function showSellerView(seller) {
   }
   document.getElementById('ven-orders-list').innerHTML = listHtml;
 }
+
+window.filterSellerOrders = function(filter) {
+  sellerOrdersFilter = filter;
+  if (currentSeller) showSellerView(currentSeller);
+};
 
 function showAdminView() {
   document.getElementById('ven-login-screen').style.display = 'none';
