@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Seguimiento de Pedido | Origami Decoprint</title>
+<style>
+  body { background: #f4f7f6; font-family: sans-serif; margin: 0; padding: 0; display: flex; align-items: center; justify-content: center; min-height: 100vh; }
+  .card { max-width: 420px; width: 100%; padding: 30px; background: white; border-radius: 20px; box-shadow: 0 15px 35px rgba(0,0,0,0.1); text-align: center; }
+</style>
+</head>
+<body>
+  <div id="tracking-view">
+    <div class="card">
+       <div style="font-size:24px;margin-bottom:8px">⏳</div>
+       <div style="font-size:14px;color:#666">Buscando su pedido en Origami...</div>
+    </div>
+  </div>
+
+<script type="module">
+// Tu conexión directa a la base de datos
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyBvwQDX5WBpsm0npODCn58-Kia7t_MqrYc",
+  authDomain: "appcurso-ff7ab.firebaseapp.com",
+  projectId: "appcurso-ff7ab",
+  storageBucket: "appcurso-ff7ab.firebasestorage.app",
+  messagingSenderId: "646086143183",
+  appId: "1:646086143183:web:2136f14c494bd2b99b1bba"
+};
+
+// Solo importamos la lectura de datos, NADA de contraseñas ni login
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
+import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+
+const app = initializeApp(FIREBASE_CONFIG);
+const db = getFirestore(app);
+
+const params = new URLSearchParams(window.location.search);
+const trackId = params.get('track');
+const trackDiv = document.getElementById('tracking-view');
+
+if (!trackId) {
+    trackDiv.innerHTML = '<div class="card"><div style="font-size:40px;margin-bottom:12px">⚠️</div><div style="font-size:16px;font-weight:700">Enlace inválido</div><p style="font-size:12px;color:#999">No se detectó un código de seguimiento.</p></div>';
+} else {
+    async function buscarPedido() {
+        try {
+            // Buscamos en tu colección de quotes
+            const snap = await getDocs(collection(db, 'quotes'));
+            const order = snap.docs.map(d => ({id:d.id, ...d.data()})).find(o => o.trackId === trackId);
+            
+            if (!order) {
+                trackDiv.innerHTML = '<div class="card"><div style="font-size:40px;margin-bottom:12px">🔍</div><div style="font-size:16px;font-weight:700;margin-bottom:6px">Pedido no encontrado</div><div style="font-size:12px;color:#999">El enlace puede ser antiguo o hubo un error.</div></div>';
+                return;
+            }
+
+            const STATUS_STEPS = [
+                {key:'pendiente', label:'Recibido', icon:'📋'},
+                {key:'en_diseño', label:'En Diseño', icon:'🎨'},
+                {key:'aprobado', label:'Aprobado', icon:'✅'},
+                {key:'en_produccion', label:'En Producción', icon:'🖨️'},
+                {key:'listo', label:'Listo', icon:'📦'},
+                {key:'entregado', label:'Entregado', icon:'🎉'}
+            ];
+            
+            const currentIdx = STATUS_STEPS.findIndex(s => s.key === order.status);
+            const delivery = order.updatedAt ? new Date(order.updatedAt).toLocaleDateString('es-VE', {day:'2-digit',month:'long'}) : 'Pendiente';
+
+            const stepsHtml = STATUS_STEPS.map((step, i) => {
+                const isDone = i <= currentIdx;
+                const isCurrent = i === currentIdx;
+                const lineCol = isDone ? '#000' : '#eee';
+                
+                return `
+                <div style="display:flex; align-items:flex-start; gap:15px; position:relative; padding-bottom:20px;">
+                    ${i < STATUS_STEPS.length - 1 ? `<div style="position:absolute; left:14px; top:30px; bottom:0; width:2px; background:${lineCol};"></div>` : ''}
+                    <div style="width:30px; height:30px; border-radius:50%; display:grid; place-items:center; font-size:14px; z-index:2; 
+                                background:${isCurrent ? '#000' : (isDone ? '#333' : '#fff')}; 
+                                border:2px solid ${isDone ? '#333' : '#eee'}; color:${isDone ? '#fff' : '#ccc'};">
+                    ${isDone && !isCurrent ? '✓' : step.icon}
+                    </div>
+                    <div style="padding-top:4px; text-align:left;">
+                    <div style="font-size:14px; font-weight:${isCurrent ? '700' : '500'}; color:${isDone ? '#000' : '#ccc'};">
+                        ${step.label}
+                    </div>
+                    ${isCurrent ? `<div style="font-size:11px; color:#888;">Etapa actual</div>` : ''}
+                    </div>
+                </div>`;
+            }).join('');
+
+            trackDiv.innerHTML = `
+                <div class="card">
+                <div style="font-size:11px; color:#999; text-transform:uppercase; letter-spacing:1px; margin-bottom:5px;">Estatus de Trabajo</div>
+                <div style="font-size:22px; font-weight:800; margin-bottom:25px; color:#000;">${order.quoteNumStr || 'Orden'}</div>
+                
+                <div style="margin-bottom:20px;">
+                    ${stepsHtml}
+                </div>
+
+                <div style="text-align:left; background:#f8f9fa; padding:15px; border-radius:12px; margin-bottom:25px; border:1px solid #eee;">
+                    <div style="font-size:11px; color:#999; text-transform:uppercase;">Cliente:</div>
+                    <div style="font-size:14px; font-weight:600; margin-bottom:10px;">${order.clientName}</div>
+                    <div style="font-size:11px; color:#999; text-transform:uppercase;">Última actualización:</div>
+                    <div style="font-size:14px; font-weight:600;">${delivery}</div>
+                </div>
+
+                <a href="https://wa.me/58XXXXXXXXXX?text=Hola! Consulto por mi pedido ${order.quoteNumStr}" 
+                    style="text-decoration:none; display:block; background:#000; color:#fff; padding:15px; border-radius:10px; font-weight:bold; font-size:14px;">
+                    Contactar al Taller 💬
+                </a>
+                </div>
+            `;
+        } catch(e) {
+            console.error(e);
+            trackDiv.innerHTML = '<div class="card"><p>Error al cargar los datos.</p></div>';
+        }
+    }
+    buscarPedido();
+}
+</script>
+</body>
+</html>

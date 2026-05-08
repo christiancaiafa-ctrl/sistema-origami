@@ -1862,6 +1862,19 @@ input:focus,select:focus{outline:none;border-color:var(--accent);box-shadow:0 0 
   </div>
 </div>
 
+<div id="tracking-view" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:white; z-index:9999; padding:20px; font-family:sans-serif;">
+  <div style="max-width:500px; margin:auto; text-align:center;">
+    <img src="tu-logo-origami.png" width="150">
+    <h2 id="track-status-title">Estatus de su Pedido</h2>
+    <div id="track-progress-bar" style="height:10px; background:#eee; border-radius:5px; margin:20px 0;">
+       <div id="track-progress-fill" style="width:0%; height:100%; background:#00d1b2; border-radius:5px; transition:0.5s;"></div>
+    </div>
+    <div id="track-info" style="text-align:left; background:#f9f9f9; padding:15px; border-radius:8px;">
+       </div>
+    <p style="margin-top:20px; color:#666;">Gracias por confiar en <b>Origami Decoprint</b></p>
+  </div>
+</div>
+
 <script type="module">
 // Configuración de Firebase (Mantén la tuya)
 const FIREBASE_CONFIG = {
@@ -1876,15 +1889,74 @@ window.__FIREBASE_CONFIG = FIREBASE_CONFIG;
 
 try {
   const { initializeApp } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js');
-  const { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, getDocs, updateDoc, deleteDoc, query, orderBy } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
+  const { getFirestore, doc, setDoc, getDoc, onSnapshot, collection, addDoc, getDocs, updateDoc, deleteDoc, query, orderBy, where } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js');
   const { getAuth, signInWithEmailAndPassword, createUserWithEmailAndPassword, onAuthStateChanged, signOut } = await import('https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js');
 
   const app = initializeApp(FIREBASE_CONFIG);
   window.firebaseApp = app; // Exponer app globalmente para Storage
   window.db = getFirestore(app);
   window.auth = getAuth(app); // Guardar Auth globalmente
+
+  // === LÓGICA DE SEGUIMIENTO PÚBLICO (TRACKING) ===
+const urlParams = new URLSearchParams(window.location.search);
+const trackId = urlParams.get('track');
+
+if (trackId) {
+    // 1. Ocultamos el cuerpo del sistema inmediatamente para que el cliente no vea nada
+    // Asegúrate de que tu contenedor principal tenga el id "app-root" o similar
+    document.body.innerHTML = `
+        <div id="tracking-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#f4f7f6; z-index:10000; display:flex; justify-content:center; align-items:center; font-family: sans-serif;">
+            <div style="background:white; padding:30px; border-radius:15px; box-shadow:0 10px 25px rgba(0,0,0,0.1); width:90%; max-width:450px; text-align:center;">
+                <h1 style="color:#222; margin-bottom:10px;">📦 Estatus de Pedido</h1>
+                <div id="track-content">
+                    <p style="color:#666;">Buscando información de su pedido...</p>
+                    <div class="spinner" style="border: 4px solid #f3f3f3; border-top: 4px solid #3498db; border-radius: 50%; width: 30px; height: 30px; animation: spin 1s linear infinite; margin: 20px auto;"></div>
+                </div>
+                <hr style="border:0; border-top:1px solid #eee; margin:20px 0;">
+                <p style="font-size:12px; color:#999;">Generado por Origami Decoprint System</p>
+            </div>
+        </div>
+        <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+    `;
+
+    // 2. Buscamos el pedido en Firebase
+    const q = query(collection(window.db, "pedidos"), where("trackId", "==", trackId));
+    getDocs(q).then((querySnapshot) => {
+        const content = document.getElementById('track-content');
+        if (!querySnapshot.empty) {
+            const pedido = querySnapshot.docs[0].data();
+            
+            // Definimos el color según el estado
+            const statusColors = { 'pendiente': '#ffcc00', 'taller': '#3498db', 'listo': '#2ecc71', 'entregado': '#95a5a6' };
+            const color = statusColors[pedido.status] || '#000';
+
+            content.innerHTML = `
+                <div style="font-size:40px; margin-bottom:10px;">${pedido.status === 'listo' ? '✅' : '⏳'}</div>
+                <h2 style="color:${color}; text-transform:uppercase; margin-bottom:20px;">${pedido.status}</h2>
+                <div style="text-align:left; background:#f9f9f9; padding:15px; border-radius:10px; font-size:14px;">
+                    <p><strong>Pedido:</strong> #${pedido.num || 'S/N'}</p>
+                    <p><strong>Cliente:</strong> ${pedido.cliente}</p>
+                    <p><strong>Detalle:</strong> ${pedido.detalle}</p>
+                    <p><strong>Monto:</strong> $${pedido.monto}</p>
+                </div>
+                ${pedido.status === 'listo' ? 
+                    '<div style="margin-top:20px; padding:10px; background:#e8f8f5; color:#1abc9c; border-radius:5px; font-weight:bold;">¡Su pedido ya está listo para retirar!</div>' 
+                    : ''}
+            `;
+        } else {
+            content.innerHTML = `<p style="color:red;">Lo sentimos, no encontramos un pedido válido con ese código.</p>`;
+        }
+    }).catch(err => {
+        console.error(err);
+        document.getElementById('track-content').innerHTML = "Error al conectar con el servidor.";
+    });
+
+    // Detenemos la ejecución del resto del script para que no cargue el sistema SaaS
+    throw new Error("MODO_TRACKING_ACTIVO"); 
+}
   
   // Exponer funciones globales
+  window.where = where;
   window.signInWithEmailAndPassword = signInWithEmailAndPassword;
   window.signOut = signOut;
   window.onAuthStateChanged = onAuthStateChanged;
@@ -2075,6 +2147,70 @@ const SVCS=[
   {id:'material_pop',name:'Material POP\n(Promocionales)',tag:'Unidades',type:'pop',icon:'🎁'},
   {id:'grabado_diodo', name:'Grabado Láser\nDiodo (10W)', tag:'Por pieza', type:'laser_diodo', icon:'🔦'}
 ];
+
+// ============ LÓGICA DE SEGUIMIENTO PÚBLICO (MODO CLIENTE) ============
+(async () => {
+  const urlParams = new URLSearchParams(window.location.search);
+  const trackId = urlParams.get('track');
+
+  if (trackId) {
+    // 1. Bloqueamos visualmente el acceso al sistema
+    document.body.innerHTML = `
+      <div id="tracking-screen" style="position:fixed; top:0; left:0; width:100%; height:100%; background:#f0f2f5; z-index:99999; display:flex; justify-content:center; align-items:center; font-family:sans-serif;">
+        <div style="background:white; padding:40px; border-radius:20px; box-shadow:0 15px 35px rgba(0,0,0,0.1); width:90%; max-width:400px; text-align:center;">
+          <div id="track-loader">
+            <h2 style="color:#333;">Buscando pedido...</h2>
+            <div style="border:4px solid #f3f3f3; border-top:4px solid #ffd700; border-radius:50%; width:40px; height:40px; animation:spin 1s linear infinite; margin:20px auto;"></div>
+          </div>
+          <div id="track-content" style="display:none;"></div>
+          <p style="margin-top:30px; font-size:12px; color:#aaa; letter-spacing:1px;">ORIGAMI DECOPRINT</p>
+        </div>
+      </div>
+      <style>@keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }</style>
+    `;
+
+    // 2. Esperamos un segundo a que la DB esté lista y buscamos
+    setTimeout(async () => {
+      try {
+        const q = window.query(window.collection(window.db, "pedidos"), window.where("trackId", "==", trackId));
+        const querySnapshot = await window.getDocs(q);
+
+        const content = document.getElementById('track-content');
+        const loader = document.getElementById('track-loader');
+        loader.style.display = 'none';
+        content.style.display = 'block';
+
+        if (!querySnapshot.empty) {
+          const p = querySnapshot.docs[0].data();
+          const colors = { 'pendiente': '#f39c12', 'taller': '#3498db', 'listo': '#27ae60', 'entregado': '#7f8c8d' };
+          
+          content.innerHTML = `
+            <div style="font-size:50px; margin-bottom:10px;">${p.status === 'listo' ? '🎁' : '⚙️'}</div>
+            <h1 style="color:${colors[p.status] || '#333'}; text-transform:uppercase; margin:0; font-size:24px;">${p.status}</h1>
+            <p style="color:#666; margin-bottom:20px;">Orden #${p.num || '---'}</p>
+            <div style="text-align:left; background:#f8f9fa; padding:20px; border-radius:12px; line-height:1.6;">
+              <div style="color:#888; font-size:11px; text-transform:uppercase;">Cliente</div>
+              <div style="font-weight:bold; margin-bottom:10px;">${p.cliente}</div>
+              <div style="color:#888; font-size:11px; text-transform:uppercase;">Detalle</div>
+              <div style="font-weight:bold;">${p.detalle}</div>
+            </div>
+            ${p.status === 'listo' ? 
+              '<div style="margin-top:20px; padding:15px; background:#e8f8f5; color:#1abc9c; border-radius:10px; font-weight:bold; border:1px solid #1abc9c;">✨ ¡Tu pedido está listo para retirar!</div>' 
+              : '<p style="margin-top:20px; color:#888; font-size:13px;">Estamos trabajando en tu pedido, te avisaremos cuando esté listo.</p>'}
+            <a href="https://wa.me/58XXXXXXXXXX" style="display:inline-block; margin-top:20px; color:#3498db; text-decoration:none; font-size:14px; font-weight:bold;">¿Tienes alguna duda? Escríbenos</a>
+          `;
+        } else {
+          content.innerHTML = `<p style="color:#e74c3c; font-weight:bold;">Código de seguimiento no válido o pedido inexistente.</p>`;
+        }
+      } catch (e) {
+        console.error(e);
+      }
+    }, 1000);
+
+    // ESTO ES CLAVE: Detiene la carga del resto del sistema para el cliente
+    return; 
+  }
+})();
 
  
 // ============ CONFIG LOAD/SAVE ============
@@ -4058,24 +4194,33 @@ async function saveQuote() {
       showToast('Cotización actualizada', 'info');
     } catch(e) { showToast('Error: ' + e.message, 'error'); }
   } else {
-    // Create new
+    // === CREATE NEW (Aquí es donde ocurre la magia del SaaS) ===
     const qNum = quotes.length > 0 ? Math.max(...quotes.map(q => q.quoteNumber || 0)) + 1 : 1;
+    
     const quoteData = {
-      clientName: client, clientPhone: phone, notes: notes,
-      cartItems: items, amount: total, status: 'borrador',
-      quoteNumber: qNum, quoteNumStr: 'COT-' + String(qNum).padStart(4, '0'),
-      createdAt: Date.now(), updatedAt: Date.now(),
-      sellerId: window.currentUserUid || '', sellerName: window.currentUserName || ''
+      clientName: client, 
+      clientPhone: phone, 
+      notes: notes,
+      cartItems: items, 
+      amount: total, 
+      status: 'pendiente', // Cambiado de 'borrador' a 'pendiente' para el tracker
+      quoteNumber: qNum, 
+      quoteNumStr: 'COT-' + String(qNum).padStart(4, '0'),
+      trackId: generateTrackId(), // <--- NUEVA LÍNEA: Genera el código único
+      createdAt: Date.now(), 
+      updatedAt: Date.now(),
+      sellerId: window.currentUserUid || '', 
+      sellerName: window.currentUserName || ''
     };
+
     try {
       await window.addDoc(window.collection(window.db, 'quotes'), quoteData);
-      showToast('Cotización creada: COT-' + String(qNum).padStart(4, '0'), 'info');
+      showToast('Cotización creada: ' + quoteData.quoteNumStr, 'info');
     } catch(e) { showToast('Error: ' + e.message, 'error'); }
   }
   closeQuoteModal();
   loadQuotes();
 }
-window.saveQuote = saveQuote;
 
 async function loadQuotes() {
   try {
@@ -4186,9 +4331,19 @@ window.convertQuoteToOrder = convertQuoteToOrder;
 function shareQuoteWhatsApp(id) {
   const q = quotes.find(x => x.id === id);
   if (!q || !q.clientPhone) return;
+  
   const phone = q.clientPhone.replace(/[^0-9]/g, '');
   const items = (q.cartItems || []).map(i => `• ${i.qty > 1 ? i.qty + '× ' : ''}${i.desc} — $${(i.qty * i.price).toFixed(2)}`).join('\n');
-  const msg = `📋 *Cotización ${q.quoteNumStr}*\n\n${items}\n\n💰 *Total: $${(q.amount || 0).toFixed(2)}*\n\nVálida por 30 días.`;
+
+  // 1. Definimos la URL de tu SaaS en Vercel (Fija)
+  const baseVercel = "https://sistema-origami1.vercel.app/";
+  
+  // 2. Creamos la sección de seguimiento (si existe un trackId)
+  const trackingSection = q.trackId ? `\n\n🌐 *Seguimiento en vivo:*\n${baseVercel}?track=${q.trackId}` : "";
+
+  // 3. Armamos el mensaje final
+  const msg = `📋 *Cotización ${q.quoteNumStr}*\n\n${items}\n\n💰 *Total: $${(q.amount || 0).toFixed(2)}*\n\nVálida por 30 días.${trackingSection}\n\nGracias por preferirnos ✨`;
+
   window.open('https://wa.me/' + (phone.startsWith('58') ? phone : '58' + phone) + '?text=' + encodeURIComponent(msg), '_blank');
 }
 window.shareQuoteWhatsApp = shareQuoteWhatsApp;
@@ -6078,82 +6233,24 @@ window.copyTrackingLink = function(trackingId) {
 };
 
 window.shareTrackingWhatsApp = function(order) {
-  const link = window.location.origin + window.location.pathname + '?track=' + order.trackingId;
+  // 1. URL de Vercel fija (para evitar el file:///)
+  const urlBase = "https://sistema-origami1.vercel.app/rastreo.html";
+  const tId = order.trackId || order.trackingId || '';
+  const link = urlBase + '?track=' + tId;
+
+  // 2. Limpieza del teléfono (Quita espacios, guiones y el 0 inicial)
+  let phone = (order.clientPhone || '').replace(/[^0-9]/g, '');
+  if (phone.startsWith('0')) phone = phone.substring(1); // Quita el 0 de 0414 -> 414
+  if (!phone.startsWith('58')) phone = '58' + phone;     // Agrega el 58 si no lo tiene
+
+  // 3. El mensaje profesional
   const msg = `✅ *Origami Decoprint*\nSu pedido ${order.orderNumStr || ''} está registrado.\n📋 Detalle: ${order.detail}\n💰 Monto: $${order.amount.toFixed(2)}\n\n📍 Seguimiento en vivo:\n${link}\n\nGracias por preferirnos 🙏`;
-  window.open('https://wa.me/?text=' + encodeURIComponent(msg), '_blank');
+  
+  // 4. Abrir WhatsApp directamente al número del cliente
+  window.open('https://wa.me/' + phone + '?text=' + encodeURIComponent(msg), '_blank');
 };
 
-// Check if page was opened with tracking parameter
-function checkTrackingMode() {
-  const params = new URLSearchParams(window.location.search);
-  const trackId = params.get('track');
-  if (!trackId) return false;
-  
-  // Show tracking view instead of app
-  document.getElementById('login-screen').style.display = 'none';
-  document.getElementById('app-container').style.display = 'none';
-  
-  const trackDiv = document.createElement('div');
-  trackDiv.id = 'tracking-view';
-  trackDiv.style.cssText = 'min-height:100vh;background:var(--bg);display:flex;align-items:center;justify-content:center;padding:20px';
-  trackDiv.innerHTML = '<div class="card" style="max-width:420px;width:100%;padding:24px;text-align:center"><div style="font-size:24px;margin-bottom:8px">⏳</div><div style="font-size:14px;color:var(--text-3)">Buscando pedido...</div></div>';
-  document.body.appendChild(trackDiv);
-  
-  // Wait for Firebase and find order
-  const findOrder = setInterval(async () => {
-    if (!window.db) return;
-    clearInterval(findOrder);
-    try {
-      const snap = await window.getDocs(window.collection(window.db, 'orders'));
-      const order = snap.docs.map(d => ({id:d.id,...d.data()})).find(o => o.trackingId === trackId);
-      
-      if (!order) {
-        trackDiv.innerHTML = '<div class="card" style="max-width:420px;width:100%;padding:30px;text-align:center"><div style="font-size:40px;margin-bottom:12px">🔍</div><div style="font-size:16px;font-weight:700;margin-bottom:6px">Pedido no encontrado</div><div style="font-size:12px;color:var(--text-3)">El enlace puede haber expirado o el pedido fue entregado.</div></div>';
-        return;
-      }
-      
-      const STATUS_STEPS = [
-        {key:'sin_empezar', label:'Recibido', icon:'📋'},
-        {key:'en_diseño', label:'En Diseño', icon:'🎨'},
-        {key:'aprobado', label:'Aprobado', icon:'✅'},
-        {key:'en_produccion', label:'En Producción', icon:'🖨️'},
-        {key:'listo', label:'Listo', icon:'📦'},
-        {key:'entregado', label:'Entregado', icon:'🎉'}
-      ];
-      
-      const currentIdx = STATUS_STEPS.findIndex(s => s.key === order.status);
-      const delivery = order.deliveryAt ? new Date(order.deliveryAt).toLocaleDateString('es-VE', {day:'2-digit',month:'long',year:'numeric'}) : '';
-      
-      const stepsHtml = STATUS_STEPS.map((step, i) => {
-        const isDone = i <= currentIdx;
-        const isCurrent = i === currentIdx;
-        return '<div style="display:flex;align-items:center;gap:10px;padding:10px 0' + (i < STATUS_STEPS.length-1 ? ';border-left:2px solid '+(isDone?'var(--accent)':'var(--border)')+';margin-left:14px;padding-left:18px' : '') + '">' +
-          '<div style="width:28px;height:28px;border-radius:50%;display:grid;place-items:center;font-size:14px;flex-shrink:0;' + (isDone ? 'background:var(--accent-bg2);' : 'background:var(--surface-3);') + (isCurrent ? 'box-shadow:0 0 0 3px var(--accent-bg2);' : '') + '">' + step.icon + '</div>' +
-          '<div><div style="font-size:12px;font-weight:' + (isCurrent ? '700' : '500') + ';color:' + (isDone ? 'var(--text)' : 'var(--text-3)') + '">' + step.label + '</div></div></div>';
-      }).join('');
-      
-      trackDiv.innerHTML = `<div class="card" style="max-width:420px;width:100%;padding:24px">
-        <div style="text-align:center;margin-bottom:16px">
-          <div style="font-size:13px;font-weight:700;color:var(--accent)">ORIGAMI DECOPRINT</div>
-          <div style="font-size:10px;color:var(--text-3);margin-top:2px">Seguimiento de Pedido</div>
-        </div>
-        <div style="background:var(--surface-2);border-radius:var(--r);padding:14px;margin-bottom:16px">
-          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-            <span style="font-size:11px;font-weight:700;background:var(--text);color:#fff;padding:3px 8px;border-radius:20px">${order.orderNumStr||''}</span>
-            <span style="font-size:12px;font-weight:700">$${order.amount.toFixed(2)}</span>
-          </div>
-          <div style="font-weight:600;font-size:14px;margin-bottom:4px">${order.clientName}</div>
-          <div style="font-size:12px;color:var(--text-2)">${order.detail}</div>
-          ${delivery ? '<div style="font-size:11px;color:var(--accent);margin-top:6px;font-weight:600">📅 Entrega estimada: '+delivery+'</div>' : ''}
-        </div>
-        <div style="margin-bottom:8px;font-size:11px;font-weight:700;color:var(--text-3);text-transform:uppercase">Estado del Pedido</div>
-        ${stepsHtml}
-      </div>`;
-    } catch(e) { console.error(e); }
-  }, 500);
-  
-  return true;
-}
+
 
 // ============ TOAST NOTIFICATIONS ============
 window.showToast = function(msg, type = 'success', duration = 3000) {
@@ -6174,9 +6271,8 @@ window.showToast = function(msg, type = 'success', duration = 3000) {
 
 // ============ INIT (BLOQUE DE ARRANQUE) ============
 // Check tracking mode first
-if (!checkTrackingMode()) {
-  renderSvcGrid();
-}
+renderSvcGrid();
+
 
 // Estas cargas se hacen solo cuando Firebase ya está disponible
 window.addEventListener('firebaseReady', function() {
