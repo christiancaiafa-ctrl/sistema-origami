@@ -6270,21 +6270,47 @@ window.showToast = function(msg, type = 'success', duration = 3000) {
 };
 
 // ============ INIT (BLOQUE DE ARRANQUE) ============
-// Check tracking mode first
 renderSvcGrid();
-
 
 // Estas cargas se hacen solo cuando Firebase ya está disponible
 window.addEventListener('firebaseReady', function() {
-  setTimeout(() => {
-    if (typeof loadOrders === 'function') loadOrders();
-    if (typeof loadExpenses === 'function') loadExpenses();
-    if (typeof loadSellers === 'function') loadSellers();
-    if (typeof loadQuickSales === 'function') loadQuickSales();
-    if (typeof loadClients === 'function') loadClients();
-    if (typeof loadInventory === 'function') loadInventory();
-    if (typeof loadOperators === 'function') loadOperators();
-  }, 800);
+  
+  // VERIFICADOR DE SEGURIDAD (Obliga a iniciar sesión si eres invitado)
+  if (window.auth && window.onAuthStateChanged) {
+    window.onAuthStateChanged(window.auth, (user) => {
+      if (user) {
+        // TIENES LA LLAVE: Oculta el login, muestra el sistema y carga TODO
+        if(document.getElementById('login-screen')) document.getElementById('login-screen').style.display = 'none';
+        if(document.getElementById('app-container')) document.getElementById('app-container').style.display = 'block';
+        
+        setTimeout(() => {
+          if (typeof loadOrders === 'function') loadOrders();
+          if (typeof loadExpenses === 'function') loadExpenses();
+          if (typeof loadSellers === 'function') loadSellers();
+          if (typeof loadQuickSales === 'function') loadQuickSales();
+          if (typeof loadClients === 'function') loadClients();
+          if (typeof loadInventory === 'function') loadInventory();
+          if (typeof loadOperators === 'function') loadOperators();
+        }, 500);
+      } else {
+        // NO TIENES LA LLAVE: Oculta el sistema y te exige la contraseña
+        if(document.getElementById('app-container')) document.getElementById('app-container').style.display = 'none';
+        if(document.getElementById('login-screen')) document.getElementById('login-screen').style.display = 'flex';
+      }
+    });
+  } else {
+    // Modo de respaldo por si tu conexión a Firebase es diferente
+    setTimeout(() => {
+      if (typeof loadOrders === 'function') loadOrders();
+      if (typeof loadExpenses === 'function') loadExpenses();
+      if (typeof loadSellers === 'function') loadSellers();
+      if (typeof loadQuickSales === 'function') loadQuickSales();
+      if (typeof loadClients === 'function') loadClients();
+      if (typeof loadInventory === 'function') loadInventory();
+      if (typeof loadOperators === 'function') loadOperators();
+    }, 800);
+  }
+  
 }, {once: true});
 
 // ============ VENTAS RÁPIDAS ============
