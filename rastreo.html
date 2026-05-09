@@ -39,35 +39,37 @@ const trackDiv = document.getElementById('tracking-view');
 
 async function buscarPedido() {
     if (!trackIdURL) {
-        trackDiv.innerHTML = '<div class="card">⚠️ No hay código de seguimiento.</div>';
+        trackDiv.innerHTML = '<div class="card">⚠️ Enlace incompleto.</div>';
         return;
     }
 
     try {
-        // MÉTODO DE BÚSQUEDA TOTAL: Traemos la colección y filtramos a mano para evitar errores de índices
+        // Traemos todos los pedidos para comparar sin errores de índices
         const snap = await getDocs(collection(db, 'orders'));
         const allOrders = snap.docs.map(d => ({ id: d.id, ...d.data() }));
         
-        // Buscamos coincidencia exacta ignorando espacios
-        const order = allOrders.find(o => 
-            (o.trackId && o.trackId.trim() === trackIdURL.trim()) || 
-            (o.trackid && o.trackid.trim() === trackIdURL.trim())
-        );
+        // BÚSQUEDA INSENSIBLE A MAYÚSCULAS/MINÚSCULAS
+        const buscado = trackIdURL.trim().toLowerCase();
+        
+        const order = allOrders.find(o => {
+            const idEnDB = (o.trackId || o.trackid || "").toString().trim().toLowerCase();
+            return idEnDB === buscado;
+        });
 
         if (!order) {
             trackDiv.innerHTML = `
                 <div class="card">
                     <div style="font-size:40px;margin-bottom:12px">🔍</div>
                     <div style="font-size:16px;font-weight:700">Pedido no encontrado</div>
-                    <div style="font-size:12px;color:#999;margin-top:10px">
-                        Código buscado: <b>${trackIdURL}</b><br>
-                        Asegúrate de que el pedido sea nuevo y tenga código generado.
+                    <div style="font-size:12px;color:#999;margin-top:10px;line-height:1.6">
+                        No encontramos el código <b>${trackIdURL}</b>.<br>
+                        <span style="color:#e07010">Asegúrate de que el pedido sea nuevo y que aparezca en tu panel como "OR-..."</span>
                     </div>
                 </div>`;
             return;
         }
 
-        // Si lo encuentra, dibujamos la tarjeta
+        // --- SI LO ENCUENTRA, RENDERIZAMOS ---
         const STATUS_STEPS = [
             {key:'pendiente', label:'Recibido', icon:'📋'},
             {key:'en_diseño', label:'En Diseño', icon:'🎨'},
@@ -122,7 +124,7 @@ async function buscarPedido() {
 
     } catch(e) {
         console.error(e);
-        trackDiv.innerHTML = '<div class="card">⚠️ Error de conexión con la base de datos.</div>';
+        trackDiv.innerHTML = '<div class="card">⚠️ Error de conexión con Origami.</div>';
     }
 }
 
