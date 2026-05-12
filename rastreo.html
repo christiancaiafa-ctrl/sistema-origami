@@ -257,6 +257,7 @@
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js';
 import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js';
+import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js';
 
 const FIREBASE_CONFIG = {
   apiKey: "AIzaSyBNXoG6NqK_FkIIfmHqP7O2y9P_K4g0uM",
@@ -269,6 +270,7 @@ const FIREBASE_CONFIG = {
 
 const app = initializeApp(FIREBASE_CONFIG);
 const db = getFirestore(app);
+const auth = getAuth(app);
 
 const STEPS = [
   { key:'pendiente',     label:'Recibido',   icon:'📋', desc:'Pedido registrado en el sistema' },
@@ -305,6 +307,10 @@ async function buscarPedido() {
   }
 
   try {
+    // Autenticación anónima para que Firestore permita la lectura
+    await signInAnonymously(auth);
+    console.log('Auth anónima: OK');
+
     const buscado = trackIdURL.trim().toLowerCase();
     let order = null;
 
