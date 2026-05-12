@@ -309,37 +309,28 @@ async function buscarPedido() {
   try {
     // Autenticación anónima para que Firestore permita la lectura
     await signInAnonymously(auth);
-    console.log('Auth anónima: OK');
 
     const buscado = trackIdURL.trim().toLowerCase();
     let order = null;
 
     // Buscar en ambas colecciones: orders y pedidos
     const colecciones = ['orders', 'pedidos'];
-    
-    console.log('=== DIAGNÓSTICO RASTREO ===');
-    console.log('Buscando código:', buscado);
 
     for (const col of colecciones) {
       try {
         const snap = await getDocs(collection(db, col));
-        console.log('Colección "' + col + '": ' + snap.size + ' documentos');
         
         snap.forEach(doc => {
           const data = doc.data();
           const idEnDB = (data.trackingId || data.trackId || data.trackid || "").toString().trim().toLowerCase();
-          console.log('[' + col + '] Doc:', doc.id, '| trackingId:', data.trackingId, '| trackId:', data.trackId, '| Comparando:', idEnDB, '===', buscado);
           if (idEnDB === buscado) order = { id: doc.id, ...data };
         });
 
         if (order) break;
       } catch(colErr) {
-        console.warn('No se pudo leer colección "' + col + '":', colErr.code || colErr.message);
+        // Silently skip collections that can't be read
       }
     }
-
-    console.log('Pedido encontrado:', order ? 'SÍ (' + order.id + ')' : 'NO');
-    console.log('=== FIN DIAGNÓSTICO ===');
 
     if (!order) {
       card.innerHTML = '<div class="error-card"><div class="error-icon">🔍</div><div class="error-title">Pedido no encontrado</div><div class="error-msg">No encontramos un pedido asociado a este código. Si crees que es un error, contáctanos por WhatsApp.</div><div class="error-code">' + trackIdURL + '</div></div>';
@@ -369,12 +360,9 @@ async function buscarPedido() {
         '</div></div>';
     }
 
-    // WhatsApp link
-    let phone = (order.clientPhone || '').replace(/[^0-9]/g, '');
-    if (phone.startsWith('0')) phone = phone.substring(1);
-    if (!phone.startsWith('58')) phone = '58' + phone;
+    // WhatsApp link - número fijo de la tienda
     const waText = encodeURIComponent('Hola! Consulto por mi pedido ' + (order.orderNumStr || ''));
-    const waLink = 'https://wa.me/' + phone + '?text=' + waText;
+    const waLink = 'https://wa.me/584142527314?text=' + waText;
 
     card.innerHTML = 
       '<div class="card-top">' +
@@ -397,15 +385,12 @@ async function buscarPedido() {
       '<div class="wa-section">' +
         '<a href="' + waLink + '" target="_blank" class="btn-wa">' +
           '<svg viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347z"/><path d="M12 0C5.373 0 0 5.373 0 12c0 2.625.846 5.059 2.284 7.034L.789 23.492a.5.5 0 00.612.638l4.728-1.396A11.94 11.94 0 0012 24c6.627 0 12-5.373 12-12S18.627 0 12 0zm0 22c-2.37 0-4.567-.813-6.3-2.175l-.44-.35-3.19.942.866-3.264-.372-.464A9.96 9.96 0 012 12C2 6.486 6.486 2 12 2s10 4.486 10 10-4.486 10-10 10z"/></svg>' +
-          'Contactar al Taller' +
+          'Contactar la Tienda' +
         '</a>' +
       '</div>';
 
   } catch(e) {
-    console.error("Error cargando pedido:", e);
-    console.error("Código del error:", e.code);
-    console.error("Mensaje:", e.message);
-    card.innerHTML = '<div class="error-card"><div class="error-icon">⚡</div><div class="error-title">Error de conexión</div><div class="error-msg">No pudimos conectar con el servidor. Intenta nuevamente en unos segundos.</div><div class="error-code" style="margin-top:8px;font-size:11px;">' + (e.code || e.message || 'Error desconocido') + '</div></div>';
+    card.innerHTML = '<div class="error-card"><div class="error-icon">⚡</div><div class="error-title">Error de conexión</div><div class="error-msg">No pudimos conectar con el servidor. Intenta nuevamente en unos segundos.</div></div>';
   }
 }
 
