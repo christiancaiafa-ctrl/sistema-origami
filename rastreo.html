@@ -309,11 +309,20 @@ async function buscarPedido() {
     const buscado = trackIdURL.trim().toLowerCase();
     let order = null;
 
+    console.log('=== DIAGNÓSTICO RASTREO ===');
+    console.log('Buscando código:', buscado);
+    console.log('Total documentos encontrados:', snap.size);
+
     snap.forEach(doc => {
       const data = doc.data();
       const idEnDB = (data.trackingId || data.trackId || data.trackid || "").toString().trim().toLowerCase();
+      const campos = Object.keys(data).filter(k => k.toLowerCase().includes('track'));
+      console.log('Doc:', doc.id, '| Campos track:', campos, '| trackingId:', data.trackingId, '| trackId:', data.trackId, '| Valor usado:', idEnDB);
       if (idEnDB === buscado) order = { id: doc.id, ...data };
     });
+
+    console.log('Pedido encontrado:', order ? 'SÍ' : 'NO');
+    console.log('=== FIN DIAGNÓSTICO ===');
 
     if (!order) {
       card.innerHTML = '<div class="error-card"><div class="error-icon">🔍</div><div class="error-title">Pedido no encontrado</div><div class="error-msg">No encontramos un pedido asociado a este código. Si crees que es un error, contáctanos por WhatsApp.</div><div class="error-code">' + trackIdURL + '</div></div>';
@@ -377,7 +386,9 @@ async function buscarPedido() {
 
   } catch(e) {
     console.error("Error cargando pedido:", e);
-    card.innerHTML = '<div class="error-card"><div class="error-icon">⚡</div><div class="error-title">Error de conexión</div><div class="error-msg">No pudimos conectar con el servidor. Intenta nuevamente en unos segundos.</div></div>';
+    console.error("Código del error:", e.code);
+    console.error("Mensaje:", e.message);
+    card.innerHTML = '<div class="error-card"><div class="error-icon">⚡</div><div class="error-title">Error de conexión</div><div class="error-msg">No pudimos conectar con el servidor. Intenta nuevamente en unos segundos.</div><div class="error-code" style="margin-top:8px;font-size:11px;">' + (e.code || e.message || 'Error desconocido') + '</div></div>';
   }
 }
 
