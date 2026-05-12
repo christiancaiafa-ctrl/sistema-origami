@@ -4206,7 +4206,7 @@ async function saveQuote() {
       status: 'pendiente', // Cambiado de 'borrador' a 'pendiente' para el tracker
       quoteNumber: qNum, 
       quoteNumStr: 'COT-' + String(qNum).padStart(4, '0'),
-      trackId: generateTrackId(), // <--- NUEVA LÍNEA: Genera el código único
+      trackId: generateTrackingId(), // Genera el código único de seguimiento
       createdAt: Date.now(), 
       updatedAt: Date.now(),
       sellerId: window.currentUserUid || '', 
