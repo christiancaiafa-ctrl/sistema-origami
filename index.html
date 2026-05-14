@@ -5168,22 +5168,19 @@ async function saveConfig() {
   cfg.litho.costoPorPlancha = parseFloat(document.getElementById('litho-plancha').value) || 5; cfg.litho.dobleCaraFactor = parseFloat(document.getElementById('litho-factor').value) || 1.75; cfg.litho.laminadoPct = parseFloat(document.getElementById('litho-lam-pct').value) || 25;
   document.querySelectorAll('[data-tp]').forEach(el => { const t = el.dataset.tp, p = el.dataset.pp, i = parseInt(el.dataset.i), f = el.dataset.f; if (cfg[t] && cfg[t].papers[p] && cfg[t].papers[p][i] !== undefined) cfg[t].papers[p][i][f] = f === 'price' ? parseFloat(el.value) || 0 : parseInt(el.value) || 1; });
 
-  // --- 2. LÓGICA DE GUARDADO SAAS ---
-  saveLocal(); // Mantenemos el respaldo local por seguridad
-  showToast('✅ Configuración guardada localmente', 'success');
+  // --- 2. LÓGICA DE GUARDADO ---
+  saveLocal(); // Respaldo local siempre
 
-  // Si hay sesión activa, sincronizamos con la nube en la carpeta de la empresa
-  if (window.idEmpresaActual) {
+  // Sincronizar con Firebase si hay sesión activa
+  if (window.__fb && window.auth && window.auth.currentUser) {
     try {
-      // saveCloud handled by main saveCloud function
-      await window.setDoc(configRef, cfg);
-      
+      await saveCloud();
       document.getElementById('saved-ok').classList.add('on');
       setTimeout(() => document.getElementById('saved-ok').classList.remove('on'), 2000);
-      showToast('☁️ Sincronizado: Taller ' + window.idEmpresaActual, 'success');
+      showToast('☁️ Guardado y sincronizado en la nube', 'success');
     } catch (error) {
-      console.error("Error SaaS Cloud Save:", error);
-      showToast('⚠️ Error al sincronizar con la nube', 'error');
+      console.error("Error Cloud Save:", error);
+      showToast('⚠️ Guardado local OK, pero error al sincronizar con la nube', 'error');
     }
   } else {
     showToast('ℹ️ No hay sesión activa. Guardado solo en este equipo.', 'info');
